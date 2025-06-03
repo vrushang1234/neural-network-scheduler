@@ -1,21 +1,23 @@
-EXEC=p1_exec
+EXEC = p1_exec
 
-CC=g++
-CFLAGS=-std=c++98 -I.
+CC = g++
+CFLAGS = -std=c++11 -I.
 
+OBJS = main.o p1_process.o p1_threads.o p1_bubble.o
 
 %.o: %.cpp
 	$(CC) -c $< $(CFLAGS)
 
-${EXEC}: main.o p1_process.o p1_threads.o
-	g++ -o ${EXEC} main.o p1_process.o p1_threads.o -I. -lpthread 
+$(EXEC): $(OBJS)
+	$(CC) -o $(EXEC) $(OBJS) -lpthread
 
 .PHONY: test
-test: ${EXEC}
+test: $(EXEC)
 	python3 autograder.py
 
 .PHONY: clean
 clean:
-	rm -rf ./${EXEC}
+	rm -rf $(EXEC)
 	rm -rf ./*.o
 	rm -rf ./output/*
+
