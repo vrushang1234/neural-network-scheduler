@@ -2,8 +2,9 @@ import subprocess
 import time
 import csv
 import psutil
+import threading
 
-def safe_monitor_step(p, algo_name, run_id, thread_count, writer):
+def safe_monitor_step(p, algo_name, run_id, thread_count, writer, lock):
     try:
         with p.oneshot():
             cpu = p.cpu_percent(interval=None)
@@ -11,19 +12,40 @@ def safe_monitor_step(p, algo_name, run_id, thread_count, writer):
             threads = p.num_threads()
             ctx_switches = p.num_ctx_switches().voluntary + p.num_ctx_switches().involuntary
             uptime = time.time() - p.create_time()
-            writer.writerow({
-                "run_id": run_id,
-                "algorithm": algo_name,
-                "threads": thread_count,
-                "pid": p.pid,
-                "cpu_percent": round(cpu, 2),
-                "memory_mb": round(mem, 2),
-                "num_threads": threads,
-                "context_switches": ctx_switches,
-                "uptime": round(uptime, 2),
-                "timestamp": round(time.time(), 2)
-            })
+            with lock:
+                writer.writerow({
+                    "run_id": run_id,
+                    "algorithm": algo_name,
+                    "threads": thread_count,
+                    "pid": p.pid,
+                    "cpu_percent": cpu,
+                    "memory_mb": round(mem, 2),
+                    "num_threads": threads,
+                    "context_switches": ctx_switches,
+                    "uptime": round(uptime, 2),
+                    "timestamp": round(time.time(), 2)
+                })
     except (psutil.NoSuchProcess, psutil.ZombieProcess):
+        pass
+
+def monitor_children(proc, algo_name, run_id, thread_count, writer, lock):
+    try:
+        root_ps = psutil.Process(proc.pid)
+        root_ps.cpu_percent(interval=None)
+        monitored = []
+
+        while proc.poll() is None:
+            time.sleep(0.1)
+            children = root_ps.children(recursive=True)
+
+            for child in children:
+                if child.pid not in [p.pid for p in monitored]:
+                    child.cpu_percent(interval=None)
+                    monitored.append(child)
+
+            for p in monitored:
+                safe_monitor_step(p, algo_name, run_id, thread_count, writer, lock)
+    except psutil.NoSuchProcess:
         pass
 
 def main():
@@ -31,34 +53,34 @@ def main():
 
     with open("process_metrics.csv", "w", newline="") as f:
         fieldnames = [
-            "run_id", "algorithm", "threads", "pid", 
-            "cpu_percent", "memory_mb", "num_threads", 
+            "run_id", "algorithm", "threads", "pid",
+            "cpu_percent", "memory_mb", "num_threads",
             "context_switches", "uptime", "timestamp"
         ]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
 
+        lock = threading.Lock()
+
         run_id = 0
-        for i in range(10):
-            for threads in range(1, 5):
+        for i in range(1):
+            for threads in range(1, 6):
                 run_id += 1
                 print(f"[Run {run_id}] Threads: {threads} | Launching bubble + merge concurrently")
 
-                # Start both processes
                 bubble_proc = subprocess.Popen(f"./p1_exec 1 {threads} bubble", shell=True)
                 merge_proc = subprocess.Popen(f"./p1_exec 1 {threads} merge", shell=True)
 
-                # Wrap in psutil
-                bubble_ps = psutil.Process(bubble_proc.pid)
-                merge_ps = psutil.Process(merge_proc.pid)
+                bubble_thread = threading.Thread(target=monitor_children,
+                                                 args=(bubble_proc, "bubble", run_id, threads, writer, lock))
+                merge_thread = threading.Thread(target=monitor_children,
+                                                args=(merge_proc, "merge", run_id, threads, writer, lock))
 
-                # Monitor while either is alive
-                while bubble_proc.poll() is None or merge_proc.poll() is None:
-                    if bubble_proc.poll() is None:
-                        safe_monitor_step(bubble_ps, "bubble", run_id, threads, writer)
-                    if merge_proc.poll() is None:
-                        safe_monitor_step(merge_ps, "merge", run_id, threads, writer)
-                    time.sleep(0.5)
+                bubble_thread.start()
+                merge_thread.start()
+
+                bubble_thread.join()
+                merge_thread.join()
 
                 print(f"[Run {run_id}] Finished monitoring both processes.")
 
@@ -67,7 +89,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    subprocess.run("make clean", shell=True)
-    print("✅ Finished logging to process_metrics.csv")
-
 

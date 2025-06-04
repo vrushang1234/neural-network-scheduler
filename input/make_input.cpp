@@ -5,9 +5,9 @@
 #include <ctime>     // For time()
 
 int main() {
-    int numEntries = 100000;  // Change this to control number of entries
+    int numEntries = 10000000;  // Change this to control number of entries
 
-    std::ofstream outFile("./bubble.csv");
+    std::ofstream outFile("./merge.csv");
     if (!outFile.is_open()) {
         std::cerr << "Failed to open file.\n";
         return 1;
