@@ -1,0 +1,21 @@
+mode,pid,turnaround_time,waiting_time
+Neural Scheduler,20951,52.32,1.13
+Neural Scheduler,20954,8.64,1.11
+Neural Scheduler,20956,7.62,1.1
+Neural Scheduler,20957,8.31,1.09
+Neural Scheduler,20959,2.68,1.07
+Neural Scheduler,20960,12.79,1.06
+Neural Scheduler,20952,15.58,1.04
+Neural Scheduler,20953,7.95,1.03
+Neural Scheduler,20955,4.63,1.02
+Neural Scheduler,20958,6.92,1.0
+Default Linux Scheduler,21027,53.39,1.09
+Default Linux Scheduler,21028,10.61,1.08
+Default Linux Scheduler,21029,7.7,1.08
+Default Linux Scheduler,21030,8.7,1.07
+Default Linux Scheduler,21033,3.27,1.07
+Default Linux Scheduler,21036,13.39,1.05
+Default Linux Scheduler,21031,14.88,1.04
+Default Linux Scheduler,21032,8.85,1.03
+Default Linux Scheduler,21034,4.83,1.02
+Default Linux Scheduler,21035,7.22,1.0
